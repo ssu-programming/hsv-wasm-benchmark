@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JS Canvas HSV 조정 (비교용)</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        text-align: center;
+        margin: 20px;
+      }
+      h2 {
+        margin-bottom: 10px;
+      }
+      .controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 320px;
+      }
+      input[type="range"] {
+        width: 220px;
+      }
+      canvas {
+        border: 1px solid #0002;
+        margin-top: 10px;
+        max-width: 100%;
+      }
+      .perf {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>이미지 HSV 조정 (JS 단독)</h2>
+
+    <div class="controls">
+      <input type="file" id="imgInput" accept="image/*" />
+      <label>Hue:
+        <input type="range" id="hue" min="0" max="360" value="0" />
+        <span id="hueVal">0°</span>
+      </label>
+      <label>Saturation:
+        <input type="range" id="sat" min="0" max="200" value="100" />
+        <span id="satVal">100%</span>
+      </label>
+      <label>Value:
+        <input type="range" id="val" min="0" max="200" value="100" />
+        <span id="valVal">100%</span>
+      </label>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    <div id="perf" class="perf">처리시간: -</div>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const imgInput = document.getElementById("imgInput");
+      const hueSlider = document.getElementById("hue");
+      const satSlider = document.getElementById("sat");
+      const valSlider = document.getElementById("val");
+      const hueVal = document.getElementById("hueVal");
+      const satVal = document.getElementById("satVal");
+      const valVal = document.getElementById("valVal");
+      const perf = document.getElementById("perf");
+
+      let originalData = null;
+
+      imgInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          perf.textContent = "처리시간: -";
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      [hueSlider, satSlider, valSlider].forEach((slider) => {
+        slider.addEventListener("input", updateImage);
+      });
+
+      function updateImage() {
+        if (!originalData) return;
+        hueVal.textContent = `${hueSlider.value}°`;
+        satVal.textContent = `${satSlider.value}%`;
+        valVal.textContent = `${valSlider.value}%`;
+
+        const start = performance.now();
+
+        const data = new Uint8ClampedArray(originalData.data);
+        const hueShift = hueSlider.value / 360;
+        const satScale = satSlider.value / 100;
+        const valScale = valSlider.value / 100;
+
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i] / 255;
+          let g = data[i + 1] / 255;
+          let b = data[i + 2] / 255;
+
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const d = max - min;
+          let h = 0, s = 0, v = max;
+
+          if (d !== 0) {
+            s = d / max;
+            switch (max) {
+              case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+              case g: h = ((b - r) / d + 2) / 6; break;
+              case b: h = ((r - g) / d + 4) / 6; break;
+            }
+          }
+
+          h = (h + hueShift) % 1;
+          s = Math.min(s * satScale, 1);
+          v = Math.min(v * valScale, 1);
+
+          const c = v * s;
+          const x = c * (1 - Math.abs(((h * 6) % 2) - 1));
+          const m = v - c;
+          let r1, g1, b1;
+          if (0 <= h && h < 1 / 6) [r1, g1, b1] = [c, x, 0];
+          else if (h < 2 / 6) [r1, g1, b1] = [x, c, 0];
+          else if (h < 3 / 6) [r1, g1, b1] = [0, c, x];
+          else if (h < 4 / 6) [r1, g1, b1] = [0, x, c];
+          else if (h < 5 / 6) [r1, g1, b1] = [x, 0, c];
+          else [r1, g1, b1] = [c, 0, x];
+
+          data[i] = (r1 + m) * 255;
+          data[i + 1] = (g1 + m) * 255;
+          data[i + 2] = (b1 + m) * 255;
+        }
+
+        ctx.putImageData(new ImageData(data, originalData.width, originalData.height), 0, 0);
+
+        const end = performance.now();
+        perf.textContent = `처리시간: ${(end - start).toFixed(2)} ms`;
+      }
+    </script>
+  </body>
+</html>

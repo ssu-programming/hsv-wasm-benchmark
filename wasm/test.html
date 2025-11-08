@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>WASM HSV 조정 (최종본)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; text-align:center; margin:20px; }
+    canvas { border:1px solid #0002; margin-top:10px; max-width:100%; }
+    .controls { margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    label { display:flex; align-items:center; gap:10px; min-width:320px; }
+    input[type="range"] { width:220px; }
+    .perf { margin-top:10px; font-size:14px; color:#555; }
+    .ok { color:#1a7f37; } .warn { color:#b54708; } .muted { opacity:.6; }
+    input[disabled] { opacity:.5; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <h2>WebAssembly로 HSV 조정</h2>
+
+  <div class="controls muted" id="controls">
+    <input type="file" id="imgInput" accept="image/*" disabled />
+    <label>Hue
+      <input type="range" id="hue" min="0" max="360" value="0" disabled />
+      <span id="hueVal">0°</span>
+    </label>
+    <label>Saturation
+      <input type="range" id="sat" min="0" max="200" value="100" disabled />
+      <span id="satVal">100%</span>
+    </label>
+    <label>Value
+      <input type="range" id="val" min="0" max="200" value="100" disabled />
+      <span id="valVal">100%</span>
+    </label>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <div id="status" class="perf warn">WASM 로딩 중…</div>
+  <div id="perf" class="perf">-</div>
+
+  <!-- 전역 Module을 미리 정의: emscripten이 이 객체를 재사용 -->
+  <script>
+    var Module = {
+      onRuntimeInitialized() {
+        console.log("✅ WASM Runtime Initialized");
+        setupUI();
+      }
+    };
+  </script>
+
+  <!-- emscripten glue (캐시 무력화 쿼리 추가) -->
+  <script>document.write(`<script src="hsv.js?v=${Date.now()}"><\/script>`);</script>
+
+  <script>
+    // DOM refs
+    const controls = document.getElementById("controls");
+    const imgInput = document.getElementById("imgInput");
+    const hue = document.getElementById("hue");
+    const sat = document.getElementById("sat");
+    const val = document.getElementById("val");
+    const hueVal = document.getElementById("hueVal");
+    const satVal = document.getElementById("satVal");
+    const valVal = document.getElementById("valVal");
+    const statusEl = document.getElementById("status");
+    const perfEl = document.getElementById("perf");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    let original = null;
+    let adjust_hsv = null;
+
+    function setupUI() {
+      // cwrap으로 C 함수 바인딩
+      adjust_hsv = Module.cwrap("adjust_hsv", "void", ["number","number","number","number","number"]);
+
+      // 🔑 HEAPU8은 전역 변수(모듈 밖)다. Module.HEAPU8이 아니다!
+      if (typeof HEAPU8 === "undefined") {
+        console.error("HEAPU8 전역이 보이지 않습니다. 빌드가 MODULARIZE=1로 되어있지 않은지 확인.");
+        statusEl.textContent = "❌ HEAPU8 미노출 (빌드 옵션 확인)";
+        return;
+      }
+
+      // UI 활성화
+      [imgInput, hue, sat, val].forEach(el => el.disabled = false);
+      controls.classList.remove("muted");
+      statusEl.textContent = "✅ WASM 준비 완료";
+      statusEl.classList.remove("warn"); statusEl.classList.add("ok");
+
+      // 이벤트 등록 (초기화 이후에만)
+      imgInput.addEventListener("change", onImageSelect);
+      [hue, sat, val].forEach(sl => sl.addEventListener("input", onSliderInput));
+    }
+
+    function onImageSelect(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        original = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        console.log("✅ 이미지 로드 완료");
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function onSliderInput() {
+      hueVal.textContent = `${hue.value}°`;
+      satVal.textContent = `${sat.value}%`;
+      valVal.textContent = `${val.value}%`;
+      updateImage();
+    }
+
+    function updateImage() {
+      if (!original) return;
+
+      const hueShift = Number(hue.value) / 360;
+      const satScale = Number(sat.value) / 100;
+      const valScale = Number(val.value) / 100;
+
+      const t0 = performance.now();
+      const out = applyHSV_WASM(original, hueShift, satScale, valScale);
+      const t1 = performance.now();
+
+      ctx.putImageData(out, 0, 0);
+      perfEl.textContent = `WASM 처리 시간: ${(t1 - t0).toFixed(2)} ms`;
+    }
+
+    function applyHSV_WASM(srcImageData, hueShift, satScale, valScale) {
+      const { width, height, data: src } = srcImageData;
+      const len = src.length;
+
+      // 🔑 여기서도 전역 HEAPU8을 사용한다 (Module.HEAPU8 아님!)
+      if (typeof HEAPU8 === "undefined" || !HEAPU8.buffer) {
+        console.error("❌ HEAPU8이 아직 준비되지 않았습니다.");
+        return srcImageData;
+      }
+
+      const ptr = Module._malloc(len);
+      try {
+        const heap = new Uint8Array(HEAPU8.buffer, ptr, len);
+        heap.set(src);
+        adjust_hsv(ptr, len, hueShift, satScale, valScale);
+        const out = new Uint8ClampedArray(len);
+        out.set(heap);
+        return new ImageData(out, width, height);
+      } finally {
+        Module._free(ptr);
+      }
+    }
+  </script>
+</body>
+</html>
