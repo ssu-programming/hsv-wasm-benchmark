@@ -1,0 +1,59 @@
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: sans-serif;
+  padding: 20px;
+}
+.container {
+  display: flex;
+  gap: 30px;
+  margin-top: 20px;
+}
+.canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+canvas {
+  border: 2px solid #333;
+  max-width: 600px;
+  max-height: 450px;
+  object-fit: contain;
+}
+.controls {
+  margin: 20px 0;
+  text-align: center;
+}
+input[type="range"] {
+  margin: 5px;
+  width: 300px;
+}
+.performance {
+  margin-top: 10px;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 5px;
+}
+.wasm-perf {
+  color: #0066cc;
+  background: #e6f2ff;
+}
+.js-perf {
+  color: #cc6600;
+  background: #fff2e6;
+}
+h3 {
+  margin: 10px 0;
+}
+.winner {
+  font-size: 24px;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f0f0f0;
+  border-radius: 8px;
+}
+.processing {
+  background: #fff9e6;
+  color: #cc9900;
+}
