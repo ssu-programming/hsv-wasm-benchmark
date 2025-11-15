@@ -7,8 +7,8 @@ using namespace emscripten;
 
 // RGB에서 HSV로 변환
 void rgbToHsv(float r, float g, float b, float& h, float& s, float& v) {
-    float max = std::max({r, g, b}); 
-    float min = std::min({r, g, b}); 
+    float max = r > g ? (r > b ? r : b) : (g > b ? g : b); 
+    float min = r < g ? (r < b ? r : b) : (g < b ? g : b);
     float d = max - min; // delta
 
     v = max; // 가장 밝은 채널의 값이 명도가 된다.
@@ -16,21 +16,24 @@ void rgbToHsv(float r, float g, float b, float& h, float& s, float& v) {
     if (d == 0.0f) {
         h = 0.0f;
     } else {
+        float invD = 1.0f / d;  // 역수 미리 계산 (나눗셈을 곱셈으로 최적화)
+        const float inv6 = 0.16666667f;  // 1/6을 미리 계산
+
         if (max == r) {
-            h = ((g - b) / d + (g < b ? 6.0f : 0.0f)) / 6.0f;
+            h = ((g - b) * invD + (g < b ? 6.0f : 0.0f)) * inv6;
         } else if (max == g) {
-            h = ((b - r) / d + 2.0f) / 6.0f;
+            h = ((b - r) * invD + 2.0f) * inv6;
         } else {
-            h = ((r - g) / d + 4.0f) / 6.0f;
+            h = ((r - g) * invD + 4.0f) * inv6;
         }
     }
 }
 
 // HSV에서 RGB로 변환
 void hsvToRgb(float h, float s, float v, float& r, float& g, float& b) {
-    float c = v * s;
+    float c = v * s; // 채도
     float x = c * (1.0f - std::abs(std::fmod(h * 6.0f, 2.0f) - 1.0f));
-    float m = v - c;
+    float m = v - c; // 밝기 조정 갑
 
     float r1 = 0, g1 = 0, b1 = 0;
 
@@ -70,10 +73,16 @@ void applyHsvAdjustment(uintptr_t dataPtr, int length, float hueShift, float sat
         float h, s, v;
         rgbToHsv(r, g, b, h, s, v);
 
-        // HSV 조정
-        h = std::fmod(h + hueShift, 1.0f);
-        s = std::min(s * satScale, 1.0f);
-        v = std::min(v * valScale, 1.0f);
+        // HSV 조정 (최적화)
+        h += hueShift;
+        if (h >= 1.0f) h -= 1.0f;
+        else if (h < 0.0f) h += 1.0f;
+
+        s *= satScale;
+        if (s > 1.0f) s = 1.0f;
+
+        v *= valScale;
+        if (v > 1.0f) v = 1.0f;
 
         // HSV -> RGB
         hsvToRgb(h, s, v, r, g, b);
