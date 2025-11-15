@@ -27,7 +27,8 @@ const Control = () => {
   const [jsCompleted, setJsCompleted] = useState(false);
   const [wasmCompleted, setWasmCompleted] = useState(false);
   const [winner, setWinner] = useState<"js" | "wasm" | null>(null);
-  const processingRef = useRef(false);
+  const cancelTokenRef = useRef<{ cancelled: boolean }>({ cancelled: false });
+  const imagesRef = useRef<ImageData[]>([]);
 
   // WASM 모듈 로드
   useEffect(() => {
@@ -68,104 +69,115 @@ const Control = () => {
         loadedCount++;
 
         if (loadedCount === Math.min(files.length, imageCount)) {
+          imagesRef.current = newImages;
           setImages(newImages);
           // 모든 이미지 로드 후 처리
-          setTimeout(() => {
-            newImages.forEach((imgData) => {
-              processImage(imgData, hue, saturation, value);
-            });
-          }, 100);
+          newImages.forEach((imgData) => {
+            processImage(imgData, hue, saturation, value);
+          });
         }
       };
       img.src = URL.createObjectURL(file);
     });
   };
 
-  // 디바운싱: 슬라이더 값이 변경되면 일정 시간 후에 실제 처리 값 업데이트
+  // 디바운싱: 슬라이더 값이 변경되면 즉시 실제 처리 값 업데이트
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedHue(hue);
-      setDebouncedSaturation(saturation);
-      setDebouncedValue(value);
-    }, 150); // 150ms 디바운스
-
-    return () => clearTimeout(timer);
+    setDebouncedHue(hue);
+    setDebouncedSaturation(saturation);
+    setDebouncedValue(value);
   }, [hue, saturation, value]);
 
-  // 디바운싱된 값으로 이미지 처리 (비동기로 동시 시작하여 시각적 차이 확인)
+  // 디바운싱된 값으로 이미지 처리 (실시간 반영 및 동시 처리)
   useEffect(() => {
-    if (images.length > 0 && !processingRef.current) {
-      processingRef.current = true;
-      setIsProcessing(true);
-      setJsCompleted(false);
-      setWasmCompleted(false);
-      setWinner(null);
-      setTotalJsTime(0);
-      setTotalWasmTime(0);
+    const currentImages = imagesRef.current;
+    if (currentImages.length === 0 || !wasmModule) return;
 
-      let jsTotal = 0;
-      let wasmTotal = 0;
-      let jsDone = false;
-      let wasmDone = false;
+    // 이전 처리 취소
+    cancelTokenRef.current.cancelled = true;
+    const currentToken = { cancelled: false };
+    cancelTokenRef.current = currentToken;
 
-      const checkBothDone = () => {
-        if (jsDone && wasmDone) {
-          setTotalJsTime(jsTotal);
-          setTotalWasmTime(wasmTotal);
-          setWinner(wasmTotal < jsTotal ? "wasm" : "js");
-          setIsProcessing(false);
-          setImages([...images]);
-          processingRef.current = false;
-        }
-      };
+    setIsProcessing(true);
+    setJsCompleted(false);
+    setWasmCompleted(false);
+    setWinner(null);
+    setTotalJsTime(0);
+    setTotalWasmTime(0);
 
-      // JS와 WASM을 실제로 동시에 시작 (같은 requestAnimationFrame에서 실행)
-      requestAnimationFrame(() => {
-        // JS 처리 (동기적으로 실행)
-        const jsStart = performance.now();
-        images.forEach((imgData) => {
-          const start = performance.now();
-          processWithJS(
-            imgData,
-            debouncedHue,
-            debouncedSaturation,
-            debouncedValue
-          );
-          const end = performance.now();
-          imgData.jsTime = end - start;
-        });
-        const jsEnd = performance.now();
-        jsTotal = jsEnd - jsStart;
-        setTotalJsTime(jsTotal);
-        setJsCompleted(true);
-        jsDone = true;
-        // 즉시 화면 업데이트
-        setImages([...images]);
-        checkBothDone();
+    // JS와 WASM을 병렬로 처리 (MessageChannel로 동시 시작)
+    if (currentToken.cancelled) return;
 
-        // WASM 처리 (동기적으로 실행 - JS 직후)
-        const wasmStart = performance.now();
-        images.forEach((imgData) => {
-          const start = performance.now();
-          processWithWasm(
-            imgData,
-            debouncedHue,
-            debouncedSaturation,
-            debouncedValue
-          );
-          const end = performance.now();
-          imgData.wasmTime = end - start;
-        });
-        const wasmEnd = performance.now();
-        wasmTotal = wasmEnd - wasmStart;
-        setTotalWasmTime(wasmTotal);
-        setWasmCompleted(true);
-        wasmDone = true;
-        // 즉시 화면 업데이트
-        setImages([...images]);
-        checkBothDone();
+    let jsTotal = 0;
+    let wasmTotal = 0;
+    let jsDone = false;
+    let wasmDone = false;
+
+    const checkBothDone = () => {
+      if (jsDone && wasmDone && !currentToken.cancelled) {
+        setWinner(wasmTotal < jsTotal ? "wasm" : "js");
+        setIsProcessing(false);
+      }
+    };
+
+    // 동시 시작을 위한 채널 생성
+    const channel = new MessageChannel();
+    const port1 = channel.port1;
+    const port2 = channel.port2;
+
+    // JS 처리
+    port1.onmessage = () => {
+      if (currentToken.cancelled) return;
+      const jsStart = performance.now();
+      currentImages.forEach((imgData) => {
+        if (currentToken.cancelled) return;
+        const start = performance.now();
+        processWithJS(
+          imgData,
+          debouncedHue,
+          debouncedSaturation,
+          debouncedValue
+        );
+        const end = performance.now();
+        imgData.jsTime = end - start;
       });
-    }
+      const jsEnd = performance.now();
+      jsTotal = jsEnd - jsStart;
+      setTotalJsTime(jsTotal);
+      setJsCompleted(true);
+      jsDone = true;
+      setImages([...currentImages]);
+      checkBothDone();
+    };
+
+    // WASM 처리
+    port2.onmessage = () => {
+      if (currentToken.cancelled) return;
+      const wasmStart = performance.now();
+      currentImages.forEach((imgData) => {
+        if (currentToken.cancelled) return;
+        const start = performance.now();
+        processWithWasm(
+          imgData,
+          debouncedHue,
+          debouncedSaturation,
+          debouncedValue
+        );
+        const end = performance.now();
+        imgData.wasmTime = end - start;
+      });
+      const wasmEnd = performance.now();
+      wasmTotal = wasmEnd - wasmStart;
+      setTotalWasmTime(wasmTotal);
+      setWasmCompleted(true);
+      wasmDone = true;
+      setImages([...currentImages]);
+      checkBothDone();
+    };
+
+    // 동시에 시작 신호 전송
+    port1.postMessage("start");
+    port2.postMessage("start");
   }, [debouncedHue, debouncedSaturation, debouncedValue, wasmModule]);
 
   // 순수 JS로 HSV 조정
@@ -360,8 +372,10 @@ const Control = () => {
             onChange={(e) => {
               const count = Number(e.target.value);
               setImageCount(count);
-              if (images.length > count) {
-                setImages(images.slice(0, count));
+              if (imagesRef.current.length > count) {
+                const newImages = imagesRef.current.slice(0, count);
+                imagesRef.current = newImages;
+                setImages(newImages);
               }
             }}
           />
