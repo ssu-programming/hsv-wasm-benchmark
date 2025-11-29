@@ -84,6 +84,23 @@ const Control = () => {
     setDebouncedValue(value);
   }, [hue, saturation, value]);
 
+  // 이미지가 새로 로드되면 초기 렌더링 트리거
+  useEffect(() => {
+    if (images.length > 0 && wasmModule) {
+      // 약간의 딜레이를 주고 현재 HSV 값으로 강제 처리 트리거
+      const timer = setTimeout(() => {
+        // debounced 값을 강제로 다시 설정해서 처리 useEffect 트리거
+        const currentHue = hue;
+        const currentSat = saturation;
+        const currentVal = value;
+        setDebouncedHue(currentHue);
+        setDebouncedSaturation(currentSat);
+        setDebouncedValue(currentVal);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [images.length, wasmModule, hue, saturation, value]);
+
   // 디바운싱된 값으로 이미지 처리 (실시간 반영 및 동시 처리)
   useEffect(() => {
     const currentImages = imagesRef.current;
@@ -351,13 +368,14 @@ const Control = () => {
       imgData.wasmCanvas = ref;
     }
 
-    // canvas가 설정되고 비어있을 때만 원본 이미지 그리기 (처음 로드 시)
+    // 처음 canvas가 설정될 때만 원본 이미지 그리기
     if (ref && imgData.image) {
       const ctx = ref.getContext("2d");
-      if (ctx && ref.width === 0 && ref.height === 0) {
+      if (ctx && !ref.dataset.initialized) {
         ref.width = imgData.image.width;
         ref.height = imgData.image.height;
         ctx.drawImage(imgData.image, 0, 0);
+        ref.dataset.initialized = "true";
       }
     }
   };
