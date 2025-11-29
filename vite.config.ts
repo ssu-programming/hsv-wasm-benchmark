@@ -17,5 +17,11 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
+    watch: {
+      ignored: ['**/emsdk/**', '**/node_modules/**'],
+    },
+  },
+  optimizeDeps: {
+    exclude: ['emsdk'],
   },
 })
