@@ -71,10 +71,6 @@ const Control = () => {
         if (loadedCount === Math.min(files.length, imageCount)) {
           imagesRef.current = newImages;
           setImages(newImages);
-          // 모든 이미지 로드 후 처리
-          newImages.forEach((imgData) => {
-            processImage(imgData, hue, saturation, value);
-          });
         }
       };
       img.src = URL.createObjectURL(file);
@@ -92,6 +88,13 @@ const Control = () => {
   useEffect(() => {
     const currentImages = imagesRef.current;
     if (currentImages.length === 0 || !wasmModule) return;
+
+    // canvas가 모두 설정되었는지 확인
+    const allCanvasesReady = currentImages.every(
+      (imgData) => imgData.jsCanvas && imgData.wasmCanvas
+    );
+
+    if (!allCanvasesReady) return;
 
     // 이전 처리 취소
     cancelTokenRef.current.cancelled = true;
@@ -337,16 +340,6 @@ const Control = () => {
     }
   };
 
-  const processImage = (
-    imgData: ImageData,
-    h: number,
-    s: number,
-    v: number
-  ) => {
-    processWithJS(imgData, h, s, v);
-    processWithWasm(imgData, h, s, v);
-  };
-
   const setCanvasRef = (
     imgData: ImageData,
     type: "js" | "wasm",
@@ -356,6 +349,16 @@ const Control = () => {
       imgData.jsCanvas = ref;
     } else {
       imgData.wasmCanvas = ref;
+    }
+
+    // canvas가 설정되고 비어있을 때만 원본 이미지 그리기 (처음 로드 시)
+    if (ref && imgData.image) {
+      const ctx = ref.getContext("2d");
+      if (ctx && ref.width === 0 && ref.height === 0) {
+        ref.width = imgData.image.width;
+        ref.height = imgData.image.height;
+        ctx.drawImage(imgData.image, 0, 0);
+      }
     }
   };
 
@@ -434,9 +437,6 @@ const Control = () => {
           <div className={styles.stats}>
             <div className={styles.statItem}>
               <h3>전체 처리 시간 (총 {images.length}개 이미지)</h3>
-              {isProcessing && (
-                <div className={styles.processingIndicator}>⏳ 처리 중...</div>
-              )}
               <div className={styles.timeComparison}>
                 <div
                   className={`${styles.timeBox} ${
@@ -448,7 +448,11 @@ const Control = () => {
                     {jsCompleted && " ✓"}
                   </span>
                   <span className={styles.time}>
-                    {totalJsTime > 0 ? `${totalJsTime.toFixed(2)}ms` : "-"}
+                    {isProcessing && !jsCompleted
+                      ? "..."
+                      : totalJsTime > 0
+                      ? `${totalJsTime.toFixed(2)}ms`
+                      : "-"}
                   </span>
                 </div>
                 <div
@@ -461,18 +465,13 @@ const Control = () => {
                     {wasmCompleted && " ✓"}
                   </span>
                   <span className={styles.time}>
-                    {totalWasmTime > 0 ? `${totalWasmTime.toFixed(2)}ms` : "-"}
+                    {isProcessing && !wasmCompleted
+                      ? "..."
+                      : totalWasmTime > 0
+                      ? `${totalWasmTime.toFixed(2)}ms`
+                      : "-"}
                   </span>
                 </div>
-                {!isProcessing && totalWasmTime > 0 && totalJsTime > 0 && (
-                  <div className={styles.speedup}>
-                    <span>
-                      {winner === "wasm" ? "🏆" : "🏆"}{" "}
-                      {winner === "wasm" ? "WASM" : "JavaScript"} 승리!{" "}
-                      {(totalJsTime / totalWasmTime).toFixed(2)}x 빠름
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -527,16 +526,6 @@ const Control = () => {
             ))}
           </div>
         </>
-      )}
-
-      {images.length === 0 && (
-        <div className={styles.placeholder}>
-          <p>이미지를 업로드하여 성능 비교를 시작하세요</p>
-          <p className={styles.hint}>
-            💡 여러 이미지를 동시에 처리하면 WASM의 성능 이점이 더 명확하게
-            드러납니다
-          </p>
-        </div>
       )}
     </div>
   );

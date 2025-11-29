@@ -99,24 +99,6 @@
   }
 }
 
-.processingIndicator {
-  text-align: center;
-  padding: 0.5rem;
-  background-color: #fff9e6;
-  color: #cc9900;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  font-weight: bold;
-}
-
-.statItem {
-  h3 {
-    color: #fff;
-    margin: 0 0 1rem 0;
-    font-size: 1.1rem;
-  }
-}
-
 .timeComparison {
   display: flex;
   flex-direction: column;
@@ -127,20 +109,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
   background-color: #242424;
   border-radius: 4px;
-
-  &.completed {
-    background-color: #1a3a1a;
-    border: 1px solid #4a8a4a;
-  }
-
-  &.winner {
-    background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-    border: 2px solid #fff;
-    box-shadow: 0 4px 20px rgba(100, 108, 255, 0.5);
-  }
+  min-height: 24px;
 
   .label {
     color: #888;
@@ -152,32 +123,19 @@
   }
 
   .time {
-    color: #646cff;
+    min-height: 40px;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: red;
     font-size: 1.2rem;
     font-weight: bold;
   }
-
-  &.completed .time {
-    color: #4a8a4a;
-  }
-
-  &.winner .time {
-    color: #fff;
-    font-size: 1.4rem;
-  }
-}
-
-.speedup {
-  text-align: center;
-  padding: 1rem;
-  background: linear-gradient(135deg, #646cff 0%, #535bf2 100%);
-  border-radius: 4px;
-  color: #fff;
-  font-size: 1.3rem;
-  font-weight: bold;
 }
 
 .imageGrid {
+  margin-top: 2rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
   gap: 2rem;
@@ -208,37 +166,6 @@
   padding: 0.5rem;
   border-radius: 4px;
 
-  &.completedResult {
-    background-color: rgba(74, 138, 74, 0.1);
-    border: 1px solid rgba(74, 138, 74, 0.3);
-  }
-
-  &.winnerResult {
-    background: linear-gradient(
-      135deg,
-      rgba(100, 108, 255, 0.2) 0%,
-      rgba(83, 91, 242, 0.2) 100%
-    );
-    border: 2px solid #646cff;
-    box-shadow: 0 4px 15px rgba(100, 108, 255, 0.4);
-  }
-
-  h5 {
-    color: #888;
-    margin: 0;
-    font-size: 0.85rem;
-    font-weight: 500;
-  }
-
-  &.completedResult h5 {
-    color: #4a8a4a;
-  }
-
-  &.winnerResult h5 {
-    color: #646cff;
-    font-weight: bold;
-  }
-
   .canvas {
     width: 100%;
     height: auto;
@@ -247,30 +174,11 @@
     background-color: #000;
   }
 
-  &.completedResult .canvas {
-    border-color: #4a8a4a;
-  }
-
-  &.winnerResult .canvas {
-    border-color: #646cff;
-    border-width: 2px;
-  }
-
   .timeText {
-    color: #646cff;
+    color: red;
     font-size: 0.85rem;
     margin: 0;
     text-align: center;
-  }
-
-  &.completedResult .timeText {
-    color: #4a8a4a;
-  }
-
-  &.winnerResult .timeText {
-    color: #646cff;
-    font-weight: bold;
-    font-size: 1rem;
   }
 }
 
