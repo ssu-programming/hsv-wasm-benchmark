@@ -49,9 +49,25 @@ npm run build
 |  장우진    |   기획 및 QA   |   QA 및 개발보조        |
 
 ## 5. 개발 중 어려웠던 점과 해결 방법
-### 어려웠던 점
 
-### 해결 방법
+### JavaScript에서 C++로 이미지 데이터 전달 최적화
+**어려웠던 점**
+- 처음에는 JavaScript 배열을 C++에 직접 전달하는 방식을 시도했으나, 데이터 복사 오버헤드로 인해 성능이 크게 저하되었습니다.
+- 특히 대용량 이미지의 경우 배열 복사에만 상당한 시간이 소요되어 WebAssembly의 성능 이점이 상쇄되는 문제가 발생했습니다.
+
+**해결 방법**
+- JavaScript에서 이미지 데이터를 WASM의 Linear Memory에 직접 복사하고, 메모리 주소(포인터)만 C++ 함수에 전달하는 방식으로 변경했습니다.
+- `malloc`/`free`로 WASM 힙 메모리를 직접 관리하고, `HEAPU8` 버퍼를 활용하여 제로카피 방식으로 데이터를 전달했습니다.
+- 결과적으로 데이터 전달 오버헤드를 최소화하여 실제 연산 성능에 집중할 수 있었습니다.
+
+```javascript
+// Control.tsx:328-350
+const ptr = wasmModule._malloc(data.length);
+wasmModule.HEAPU8.set(data, ptr);  // Linear Memory에 직접 복사
+wasmModule.applyHsvAdjustment(ptr, data.length, hueShift, satScale, valScale);
+const result = wasmModule.HEAPU8.subarray(ptr, ptr + data.length);
+wasmModule._free(ptr);
+```
 
 ## 6. 가산점 항목
 
