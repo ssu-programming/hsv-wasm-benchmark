@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && echo '' > dist/.nojekyll",
+    "build": "tsc -b && vite build && cp dist/index.html dist/404.html && echo '' > dist/.nojekyll",
     "build:wasm": "cd wasm && ./build.sh && cd .. && cp wasm/hsv.js src/wasm/ && cp wasm/hsv.wasm src/wasm/",
     "build:all": "npm run build:wasm && npm run build",
     "lint": "eslint .",
