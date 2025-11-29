@@ -99,8 +99,8 @@ npm run build
 
 
 ## 7. Latency 측정 테이블
-| 구분 | JavaScript | WebAssembly | 성능 향상 |
-|------|-----------|-------------|----------|
-|      |           |             |          |
-|      |           |             |          |
-|      |           |             |          |
+| 구분 | JavaScript | WebAssembly |
+|------|-----------|-------------|
+|   hsvToRgb   |    93.625ms       |          82.565ms   |  
+|    adjustHsv  |   75.660ms       |    39.370ms         |
+|  rgbToHsv    |  166.695ms         |       74.805ms      |
