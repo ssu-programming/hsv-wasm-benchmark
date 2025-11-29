@@ -7,7 +7,7 @@ import Control from "./pages/control/Control";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/hsv-wasm-benchmark">
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Main />} />
