@@ -192,3 +192,11 @@ sh
 - **색공간 변환 알고리즘**: RGB ↔ HSV 수학적 변환 로직 구현 및 최적화
 - **성능 측정 API**: `performance.now()`를 활용한 고정밀 타이밍 측정
 - **CORS 헤더 설정**: `Cross-Origin-Embedder-Policy`로 SharedArrayBuffer 지원
+
+## 9. Latency 측정 테이블
+
+| 구분      | JavaScript | WebAssembly |
+| --------- | ---------- | ----------- |
+| hsvToRgb  | 93.625ms   | 82.565ms    |
+| adjustHsv | 75.660ms   | 39.370ms    |
+| rgbToHsv  | 166.695ms  | 74.805ms    |
