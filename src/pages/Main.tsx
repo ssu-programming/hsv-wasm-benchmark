@@ -14,8 +14,8 @@ const Main = () => {
         <br />
         <br />
         특히, 이 프로젝트는 두 가지 처리 방식을 동시에 제공합니다. 하나는{" "}
-        <strong>순수 JavaScript</strong>를 이용한 처리 방식으로, 브라우저만으로
-        모든 계산을 수행하며, 다른 하나는
+        <strong>JavaScript</strong>를 이용한 처리 방식으로, 브라우저만으로 모든
+        계산을 수행하며, 다른 하나는
         <strong> C++ 코드 기반 WebAssembly(WASM)</strong> 방식으로, 동일한
         이미지와 조정 값을 적용하면서 처리 속도와 반응성을 비교할 수 있습니다.
         <br />

@@ -200,7 +200,7 @@ const Control = () => {
     port2.postMessage("start");
   }, [debouncedHue, debouncedSaturation, debouncedValue, wasmModule]);
 
-  // 순수 JS로 HSV 조정
+  // JS로 HSV 조정
   const processWithJS = (
     imgData: ImageData,
     hueValue: number,
@@ -250,9 +250,9 @@ const Control = () => {
       const satScale = satValue / 100.0; // 0-200 -> 0-2
       const valScale = valValue / 100.0; // 0-200 -> 0-2
 
-      let newH = (h + hueShift) % 1;
-      let newS = Math.min(s * satScale, 1);
-      let newV = Math.min(v * valScale, 1);
+      const newH = (h + hueShift) % 1;
+      const newS = Math.min(s * satScale, 1);
+      const newV = Math.min(v * valScale, 1);
 
       // HSV to RGB (index.html과 동일한 방식)
       const c = newV * newS;
@@ -462,7 +462,7 @@ const Control = () => {
                   } ${jsCompleted ? styles.completed : ""}`}
                 >
                   <span className={styles.label}>
-                    순수 JavaScript
+                    JavaScript
                     {jsCompleted && " ✓"}
                   </span>
                   <span className={styles.time}>
@@ -505,7 +505,7 @@ const Control = () => {
                     } ${jsCompleted ? styles.completedResult : ""}`}
                   >
                     <h5>
-                      순수 JavaScript
+                      JavaScript
                       {jsCompleted && " ✓"}
                     </h5>
                     <canvas
