@@ -38,6 +38,10 @@ WebAssembly와 JavaScript의 성능을 비교하는 HSV 이미지 조정 웹 애
 
 ## 3. 실행 방법
 
+https://ssu-programming.github.io/hsv-wasm-benchmark/control
+
+
+
 ```bash
 # 설치
 
