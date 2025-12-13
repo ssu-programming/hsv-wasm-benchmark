@@ -119,14 +119,8 @@ wasmModule._free(ptr);
 - **제로카피 기법**: 포인터를 통한 데이터 전달로 복사 비용 최소화
 - **최적 타입 사용**: `Uint8ClampedArray`로 픽셀 데이터 처리
 
-#### 4. 렌더링 최적화
 
-- **requestAnimationFrame**: 브라우저 렌더링 사이클과 동기화
-- **Throttling**: 중복 업데이트 방지 플래그(`updateScheduled`)
-- **비동기 처리**: `setTimeout`으로 UI 스레드 블로킹 방지
-- **상태 관리**: `isProcessing` 플래그로 중복 처리 차단
-
-#### 5. 기술 조사
+#### 4. 기술 조사
 
 - **Emscripten 툴체인**: C++ 코드를 WebAssembly로 변환하는 컴파일 과정 연구
 - **WebAssembly 메모리 모델**: Linear Memory 구조 및 JavaScript와의 상호작용
